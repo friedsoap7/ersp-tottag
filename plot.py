@@ -64,4 +64,6 @@ def plot(tags):
 if __name__ == "__main__":
     log_filename = parse_args()
     tags = load_dict(log_filename)
+    print(tags)
+    input()
     plot(tags)

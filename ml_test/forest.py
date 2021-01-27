@@ -2,10 +2,8 @@ import numpy as np
 import pandas as pd
 
 train_file = open("train.csv")
-#test_file = open("test.csv")
 
 train_df = pd.read_csv(train_file)
-#test_df = pd.read_csv(test_file)
 
 target = train_df['category']
 
@@ -39,10 +37,10 @@ y_train = np.array(y_train)
 x_test = np.array(x_test)
 y_test = np.array(y_test)
 
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 
-clf = KNeighborsClassifier(n_neighbors = 1)
+clf = RandomForestClassifier(n_estimators=50)
 clf.fit(x_train, y_train)
 y_pred = clf.predict(x_test)
 print(accuracy_score(y_test, y_pred))
