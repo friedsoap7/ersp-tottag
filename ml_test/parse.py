@@ -1,6 +1,8 @@
 import sys
 import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter
+from knn import classify_knn
+from forest import classify_forest
 
 
 def parse_args():
@@ -122,10 +124,67 @@ def demo_sliding_window(tags):
     plt.show()
 
 
+def label_events(windows, diary, event_labels):
+    # diary :: [event]
+    # event  :: (label, start, end)
+    labels = []
+
+    for window in windows:
+        # make some decision about which event best represents this window
+        # I'll just pick based off of which is most common during this window
+        voting = []
+        for event in event_labels:
+            voting.append(0)
+        
+        for event in diary:
+            start_event = max(event[1], window[0][0])
+            end_event = min(event[2], window[-1][0])
+            event_length = end_event - start_event
+
+            if event_length < 0:
+                continue
+            
+            window_length = window[-1][0] - window[0][0]
+
+            voting[event[0]] += event_length / window_length
+        
+        label = voting.index(max(voting))
+
+        labels.append(label)
+
+    return labels
+
+
 if __name__ == "__main__":
     log_filename = parse_args()
     tags = load_dict(log_filename)
 
-    demo_sliding_window(tags)
+    windows = generate_sliding_windows(tags, '41', 30, 5)
+
+    diary = [
+        (0, 0, 120),
+        (1, 120, 240),
+        (0, 240, 550)
+    ]
+
+    event_labels = [0, 1]
+
+    labels = label_events(windows, diary, event_labels)
+
+    for i in range(len(windows)):
+        print(windows[i][0][0], windows[i][-1][0], labels[i])
+
+    stripped_windows = []
+
+    for window in windows:
+        strip_win = []
+        for tup in window:
+            strip_win.append(tup[1])
+        stripped_windows.append(strip_win)
+
+    classify_knn(stripped_windows, labels)
+    classify_forest(stripped_windows, labels)
+
+    # demo_sliding_window(tags)
 
     # plot(tags)
