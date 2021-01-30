@@ -1,11 +1,12 @@
 import sys
 import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter
-from knn import classify_knn
-from forest import classify_forest
+from knn import train_knn
+from forest import train_forest
 
 
 def parse_args():
+    """Parses command-line arguments to ensure proper format and returns the provided filename."""
     if len(sys.argv) == 4 and sys.argv[0] == '-m' and sys.argv[1] == 'pdb':
         print("DEBUGGING")
     elif len(sys.argv) != 2:
@@ -15,10 +16,11 @@ def parse_args():
     return log_filename
 
 
-def load_dict(log_filename):
+def load_dict(log_file):
+    """Loads TotTag data from a specified filepath, and returns a dictionary containing the data."""
     tags = {}
 
-    with open(log_filename) as f:
+    with open(log_file) as f:
         for line in f:
 
             if line[0] == '#':
@@ -42,6 +44,7 @@ def load_dict(log_filename):
 
 
 def fill_buf(data, buf_size, start):
+    """Fills buffer with first valid window starting at index 'start', and returns a tuple containing the filled buffer and actual start index."""
     old_start = start
     buf = []
     try:
@@ -59,6 +62,7 @@ def fill_buf(data, buf_size, start):
 
 
 def generate_sliding_windows(data, tag, window_length, window_shift):
+    """Generates and returns a list of windows of specified length and shift size."""
     if tag in data:
         index = 0
         windows = []
@@ -72,6 +76,7 @@ def generate_sliding_windows(data, tag, window_length, window_shift):
 
 
 def plot(tags):
+    """Plots the provided TotTag data in both its original form and an experimental smoothed form."""
     for tag, data in tags.items():
         print("Plotting data for", tag)
         x_axis, y_axis = zip(*data)
@@ -80,14 +85,12 @@ def plot(tags):
 
         smoothed_y_axis = savgol_filter(y_axis, window_length=9, polyorder=3)
 
-        plt.figure(fig)
         fig += 1
         plt.scatter(x_axis, y_axis)
         plt.title('TotTag data for device ' + str(tag))
         plt.xlabel('Timestamp')
         plt.ylabel('Distance in mm')
 
-        plt.figure(fig)
         fig += 1
         plt.scatter(x_axis, smoothed_y_axis)
         plt.title('TotTag data for device ' + str(tag))
@@ -97,6 +100,7 @@ def plot(tags):
 
 
 def demo_sliding_window(tags):
+    """Divides the provided data into windows and plots each window in an alternating pattern, with vertical bars marking start/ends of windows."""
     windows = generate_sliding_windows(tags, '41', 30, 30)
     
     half1 = windows[::2]
@@ -125,13 +129,10 @@ def demo_sliding_window(tags):
 
 
 def label_events(windows, diary, event_labels):
-    # diary :: [event]
-    # event  :: (label, start, end)
+    """Given windows of timeseries data, labels each one by the most common event during that period, and returns the list of labels."""
     labels = []
 
     for window in windows:
-        # make some decision about which event best represents this window
-        # I'll just pick based off of which is most common during this window
         voting = []
         for event in event_labels:
             voting.append(0)
@@ -155,11 +156,32 @@ def label_events(windows, diary, event_labels):
     return labels
 
 
+def strip_windows(windows):
+    """Removes timestamps from a list of windows, priming it for the model, and returns the list of stripped windows."""
+    stripped_windows = []
+
+    for window in windows:
+        strip_win = []
+        for tup in window:
+            strip_win.append(tup[1])
+        stripped_windows.append(strip_win)
+
+    return stripped_windows
+
+
+def print_window_times_and_labels(windows):
+    """Prints the start and end timestamps and event label of each window in the list."""
+    for i in range(len(windows)):
+        print("Event" + str(i) + ":", windows[i][0][0], windows[i][-1][0], labels[i])
+
+
 if __name__ == "__main__":
+    # Test the code here!
+
     log_filename = parse_args()
     tags = load_dict(log_filename)
 
-    windows = generate_sliding_windows(tags, '41', 30, 5)
+    windows = generate_sliding_windows(tags, '41', 30, 30)
 
     diary = [
         (0, 0, 120),
@@ -171,20 +193,9 @@ if __name__ == "__main__":
 
     labels = label_events(windows, diary, event_labels)
 
-    for i in range(len(windows)):
-        print(windows[i][0][0], windows[i][-1][0], labels[i])
+    print_window_times_and_labels(windows)
+    
+    stripped_windows = strip_windows(windows)
 
-    stripped_windows = []
-
-    for window in windows:
-        strip_win = []
-        for tup in window:
-            strip_win.append(tup[1])
-        stripped_windows.append(strip_win)
-
-    classify_knn(stripped_windows, labels)
-    classify_forest(stripped_windows, labels)
-
-    # demo_sliding_window(tags)
-
-    # plot(tags)
+    train_knn(stripped_windows, labels)
+    train_forest(stripped_windows, labels)
